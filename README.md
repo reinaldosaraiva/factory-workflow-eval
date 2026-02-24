@@ -31,3 +31,5 @@ Run tests:
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+Policy validation marker: 2026-02-24T22:59:33Z
