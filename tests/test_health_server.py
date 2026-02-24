@@ -2,18 +2,24 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import threading
 import unittest
 from datetime import datetime
 from http.client import HTTPConnection
 from http.server import HTTPServer
 
-from app.health_server import APP_VERSION, HealthHandler, clear_notes_store
+from app.health_server import APP_VERSION, HealthHandler
+from app.notes_repo import clear_notes_store, initialize_database
 
 
 class HealthServerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        cls.db_file = tempfile.NamedTemporaryFile(prefix="factory-notes-", suffix=".db", delete=False)
+        cls.db_file.close()
+        os.environ["NOTES_DB_PATH"] = cls.db_file.name
+        initialize_database()
         cls.server = HTTPServer(("127.0.0.1", 0), HealthHandler)
         cls.port = cls.server.server_port
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -24,12 +30,16 @@ class HealthServerTest(unittest.TestCase):
         cls.server.shutdown()
         cls.server.server_close()
         cls.thread.join(timeout=1)
+        os.environ.pop("NOTES_DB_PATH", None)
+        if os.path.exists(cls.db_file.name):
+            os.remove(cls.db_file.name)
 
     def setUp(self) -> None:
         self._saved_env = {
             "READY_DB": os.environ.get("READY_DB"),
             "READY_CACHE": os.environ.get("READY_CACHE"),
             "READY_QUEUE": os.environ.get("READY_QUEUE"),
+            "NOTES_DB_PATH": os.environ.get("NOTES_DB_PATH"),
         }
         clear_notes_store()
 
@@ -39,6 +49,7 @@ class HealthServerTest(unittest.TestCase):
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+        os.environ["NOTES_DB_PATH"] = self.db_file.name
 
     def request_json(self, path: str, method: str = "GET", body: str | None = None):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
@@ -136,6 +147,27 @@ class HealthServerTest(unittest.TestCase):
         )
         self.assertEqual(res.status, 400)
         self.assertEqual(payload["error"], "invalid_json")
+
+    def test_notes_persist_after_server_restart(self) -> None:
+        self.request_json(
+            "/notes",
+            method="POST",
+            body=json.dumps({"title": "persisted", "content": "keep"}),
+        )
+        cls = type(self)
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=1)
+
+        cls.server = HTTPServer(("127.0.0.1", 0), HealthHandler)
+        cls.port = cls.server.server_port
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+        res, payload = self.request_json("/notes")
+        self.assertEqual(res.status, 200)
+        self.assertEqual(len(payload["items"]), 1)
+        self.assertEqual(payload["items"][0]["title"], "persisted")
 
 
 if __name__ == "__main__":

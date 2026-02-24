@@ -9,10 +9,10 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from time import monotonic
 
+from app.notes_repo import create_note, initialize_database, list_notes
+
 START_MONOTONIC = monotonic()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
-NOTES: list[dict[str, object]] = []
-NEXT_NOTE_ID = 1
 
 
 def now_utc_iso() -> str:
@@ -32,25 +32,6 @@ def readiness_dependencies() -> dict[str, bool]:
         "cache": env_bool("READY_CACHE", True),
         "queue": env_bool("READY_QUEUE", True),
     }
-
-
-def clear_notes_store() -> None:
-    global NEXT_NOTE_ID
-    NOTES.clear()
-    NEXT_NOTE_ID = 1
-
-
-def create_note(title: str, content: str | None) -> dict[str, object]:
-    global NEXT_NOTE_ID
-    note = {
-        "id": NEXT_NOTE_ID,
-        "title": title,
-        "content": content,
-        "created_at": now_utc_iso(),
-    }
-    NOTES.append(note)
-    NEXT_NOTE_ID += 1
-    return note
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -91,7 +72,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/notes":
-            self._write_json(200, {"items": NOTES})
+            self._write_json(200, {"items": list_notes()})
             return
 
         self._write_json(404, {"error": "not_found"})
@@ -129,7 +110,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             self._write_json(400, {"error": "content_must_be_string"})
             return
 
-        note = create_note(title.strip(), content)
+        note = create_note(title.strip(), content, now_utc_iso())
         self._write_json(201, note)
 
     def _write_json(self, status: int, payload: dict[str, object]) -> None:
@@ -146,6 +127,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 def run() -> None:
     port = int(os.getenv("PORT", "8000"))
+    initialize_database()
     server = HTTPServer(("127.0.0.1", port), HealthHandler)
     print(f"health server listening on http://127.0.0.1:{port}")
     server.serve_forever()
