@@ -1,0 +1,66 @@
+name: factory-validation
+
+on:
+  issues:
+    types: [opened, edited, reopened, labeled]
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled]
+  workflow_dispatch:
+
+jobs:
+  validate_issue_contract:
+    if: github.event_name == 'issues' && contains(toJson(github.event.issue.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate issue sections
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          required_sections=(
+            "## User Story"
+            "## Acceptance Criteria"
+            "## Gherkin Scenarios"
+            "## Technical Scope"
+            "## Out of Scope"
+            "## Evidence Checklist"
+          )
+          for section in "${required_sections[@]}"; do
+            echo "$ISSUE_BODY" | grep -q "$section" || {
+              echo "Missing required section: $section"
+              exit 1
+            }
+          done
+          echo "Issue contract validated."
+
+  validate_pr_contract:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title convention
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "$PR_TITLE" | grep -Eq '^(feat|fix|refactor|chore|docs|test|ci|perf)(\(.+\))?: .+' || {
+            echo "PR title does not follow conventional commits."
+            exit 1
+          }
+          echo "PR title convention validated."
+
+      - name: Validate PR body evidence sections
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          required_sections=(
+            "## Changes"
+            "## Tests"
+            "## Acceptance Criteria"
+            "## Risks"
+            "## Evidence"
+          )
+          for section in "${required_sections[@]}"; do
+            echo "$PR_BODY" | grep -q "$section" || {
+              echo "Missing required PR section: $section"
+              exit 1
+            }
+          done
+          echo "PR evidence contract validated."
