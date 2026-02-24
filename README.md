@@ -9,6 +9,7 @@ Validation marker: 2026-02-24T21:08:14Z
 Run server:
 
 ```bash
+python3 scripts/apply_migrations.py
 python3 app/health_server.py
 ```
 
@@ -27,6 +28,13 @@ curl -sS -X POST http://127.0.0.1:8000/notes \
   -H 'Content-Type: application/json' \
   -d '{"title":"First note","content":"Created in pilot 3"}'
 curl -sS http://127.0.0.1:8000/notes
+```
+
+Persistence config:
+
+```bash
+export NOTES_DB_PATH=/tmp/factory-pilot-notes.db
+python3 scripts/apply_migrations.py
 ```
 
 Not-ready simulation:
