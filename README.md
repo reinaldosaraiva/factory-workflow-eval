@@ -20,6 +20,15 @@ curl -sS http://127.0.0.1:8000/health/details
 curl -sS http://127.0.0.1:8000/health/ready
 ```
 
+Notes API:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/notes \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"First note","content":"Created in pilot 3"}'
+curl -sS http://127.0.0.1:8000/notes
+```
+
 Not-ready simulation:
 
 ```bash

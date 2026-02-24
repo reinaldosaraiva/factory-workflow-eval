@@ -8,7 +8,7 @@ from datetime import datetime
 from http.client import HTTPConnection
 from http.server import HTTPServer
 
-from app.health_server import APP_VERSION, HealthHandler
+from app.health_server import APP_VERSION, HealthHandler, clear_notes_store
 
 
 class HealthServerTest(unittest.TestCase):
@@ -31,6 +31,7 @@ class HealthServerTest(unittest.TestCase):
             "READY_CACHE": os.environ.get("READY_CACHE"),
             "READY_QUEUE": os.environ.get("READY_QUEUE"),
         }
+        clear_notes_store()
 
     def tearDown(self) -> None:
         for key, value in self._saved_env.items():
@@ -39,9 +40,10 @@ class HealthServerTest(unittest.TestCase):
             else:
                 os.environ[key] = value
 
-    def request_json(self, path: str):
+    def request_json(self, path: str, method: str = "GET", body: str | None = None):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
-        conn.request("GET", path)
+        headers = {"Content-Type": "application/json"}
+        conn.request(method, path, body=body, headers=headers)
         res = conn.getresponse()
         body = res.read().decode("utf-8")
         conn.close()
@@ -87,6 +89,53 @@ class HealthServerTest(unittest.TestCase):
         res, payload = self.request_json("/unknown")
         self.assertEqual(res.status, 404)
         self.assertEqual(payload["error"], "not_found")
+
+    def test_create_note_success(self) -> None:
+        res, payload = self.request_json(
+            "/notes",
+            method="POST",
+            body=json.dumps({"title": "First note", "content": "details"}),
+        )
+        self.assertEqual(res.status, 201)
+        self.assertEqual(payload["id"], 1)
+        self.assertEqual(payload["title"], "First note")
+        self.assertEqual(payload["content"], "details")
+        datetime.fromisoformat(payload["created_at"].replace("Z", "+00:00"))
+
+    def test_list_notes_success(self) -> None:
+        self.request_json(
+            "/notes",
+            method="POST",
+            body=json.dumps({"title": "A", "content": "one"}),
+        )
+        self.request_json(
+            "/notes",
+            method="POST",
+            body=json.dumps({"title": "B", "content": "two"}),
+        )
+        res, payload = self.request_json("/notes")
+        self.assertEqual(res.status, 200)
+        self.assertEqual(len(payload["items"]), 2)
+        self.assertEqual(payload["items"][0]["title"], "A")
+        self.assertEqual(payload["items"][1]["title"], "B")
+
+    def test_create_note_missing_title_returns_400(self) -> None:
+        res, payload = self.request_json(
+            "/notes",
+            method="POST",
+            body=json.dumps({"content": "missing title"}),
+        )
+        self.assertEqual(res.status, 400)
+        self.assertEqual(payload["error"], "title_required")
+
+    def test_create_note_invalid_json_returns_400(self) -> None:
+        res, payload = self.request_json(
+            "/notes",
+            method="POST",
+            body="{bad-json",
+        )
+        self.assertEqual(res.status, 400)
+        self.assertEqual(payload["error"], "invalid_json")
 
 
 if __name__ == "__main__":
