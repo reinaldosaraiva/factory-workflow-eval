@@ -64,3 +64,40 @@ jobs:
             }
           done
           echo "PR evidence contract validated."
+
+  validate_model_policy:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enforce model policy (block gemini-2.5)
+        run: |
+          mapfile -t candidates < <(
+            while IFS= read -r file; do
+              if jq -e '.graph.nodes' "$file" >/dev/null 2>&1; then
+                echo "$file"
+              fi
+            done < <(find . -type f -name "*.json")
+          )
+
+          if [ "${#candidates[@]}" -eq 0 ]; then
+            echo "No workflow draft JSON files found in repo. Skipping model-policy file checks."
+            exit 0
+          fi
+
+          failed=0
+          for file in "${candidates[@]}"; do
+            echo "Checking workflow draft file: $file"
+            if ! scripts/factory/validate_no_gemini25_in_draft.sh --draft-file "$file"; then
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "Model policy validation failed."
+            exit 1
+          fi
+
+          echo "Model policy validation passed."
