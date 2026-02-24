@@ -33,3 +33,5 @@ python3 -m unittest discover -s tests -v
 ```
 
 Policy validation marker: 2026-02-24T22:59:33Z
+
+Auto-merge validation marker: 2026-02-24T23:06:04Z
