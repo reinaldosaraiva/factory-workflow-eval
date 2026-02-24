@@ -17,6 +17,13 @@ Smoke tests:
 ```bash
 curl -sS http://127.0.0.1:8000/health
 curl -sS http://127.0.0.1:8000/health/details
+curl -sS http://127.0.0.1:8000/health/ready
+```
+
+Not-ready simulation:
+
+```bash
+READY_DB=false curl -sS http://127.0.0.1:8000/health/ready
 ```
 
 Run tests:

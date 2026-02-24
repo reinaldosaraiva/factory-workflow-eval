@@ -17,6 +17,21 @@ def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def env_bool(name: str, default: bool = True) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def readiness_dependencies() -> dict[str, bool]:
+    return {
+        "db": env_bool("READY_DB", True),
+        "cache": env_bool("READY_CACHE", True),
+        "queue": env_bool("READY_QUEUE", True),
+    }
+
+
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
@@ -37,6 +52,19 @@ class HealthHandler(BaseHTTPRequestHandler):
                     "timestamp": now_utc_iso(),
                     "uptime_seconds": round(max(monotonic() - START_MONOTONIC, 0.0), 3),
                     "version": APP_VERSION,
+                },
+            )
+            return
+
+        if self.path == "/health/ready":
+            deps = readiness_dependencies()
+            ready = all(deps.values())
+            self._write_json(
+                200 if ready else 503,
+                {
+                    "status": "ready" if ready else "not_ready",
+                    "timestamp": now_utc_iso(),
+                    "dependencies": deps,
                 },
             )
             return
