@@ -97,9 +97,11 @@ PR agent plan template (required for factory PRs):
 - AGENT_BACKEND_STATUS: PLANNED
 - AGENT_FRONTEND_STATUS: N/A
 - AGENT_QA_STATUS: PLANNED
+- AGENT_FRONTEND_JUSTIFICATION: repository has no frontend tree in pilot scope
 ```
 
 When `factory` PR checks run, these values drive the execution of CI jobs: `agent_backend`, `agent_frontend`, and `agent_qa`.
+If any agent status is `N/A`, include the corresponding `AGENT_<NAME>_JUSTIFICATION` with a non-placeholder reason.
 
 PR evidence records template (required for factory PRs):
 

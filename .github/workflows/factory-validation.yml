@@ -127,6 +127,46 @@ jobs:
             exit 1
           }
 
+          backend_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_BACKEND_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+          frontend_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_FRONTEND_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+          qa_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_QA_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+
+          if [ "$backend_status" = "N/A" ]; then
+            backend_justification="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_BACKEND_JUSTIFICATION:\s*(.+)$/\1/p' | head -n 1)"
+            [ -z "$backend_justification" ] && {
+              echo "Agent Plan requires AGENT_BACKEND_JUSTIFICATION when AGENT_BACKEND_STATUS is N/A."
+              exit 1
+            }
+            echo "$backend_justification" | grep -Eqi '^(n/a|na|none|-)$' && {
+              echo "AGENT_BACKEND_JUSTIFICATION cannot be a placeholder value."
+              exit 1
+            }
+          fi
+
+          if [ "$frontend_status" = "N/A" ]; then
+            frontend_justification="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_FRONTEND_JUSTIFICATION:\s*(.+)$/\1/p' | head -n 1)"
+            [ -z "$frontend_justification" ] && {
+              echo "Agent Plan requires AGENT_FRONTEND_JUSTIFICATION when AGENT_FRONTEND_STATUS is N/A."
+              exit 1
+            }
+            echo "$frontend_justification" | grep -Eqi '^(n/a|na|none|-)$' && {
+              echo "AGENT_FRONTEND_JUSTIFICATION cannot be a placeholder value."
+              exit 1
+            }
+          fi
+
+          if [ "$qa_status" = "N/A" ]; then
+            qa_justification="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_QA_JUSTIFICATION:\s*(.+)$/\1/p' | head -n 1)"
+            [ -z "$qa_justification" ] && {
+              echo "Agent Plan requires AGENT_QA_JUSTIFICATION when AGENT_QA_STATUS is N/A."
+              exit 1
+            }
+            echo "$qa_justification" | grep -Eqi '^(n/a|na|none|-)$' && {
+              echo "AGENT_QA_JUSTIFICATION cannot be a placeholder value."
+              exit 1
+            }
+          fi
+
           records_block="$(echo "$PR_BODY" | awk '
             /^## Evidence Records/ {capture=1; next}
             /^## / && capture==1 {exit}
