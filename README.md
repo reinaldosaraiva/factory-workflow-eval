@@ -97,12 +97,19 @@ PR agent plan template (required for factory PRs):
 - AGENT_BACKEND_STATUS: PLANNED
 - AGENT_FRONTEND_STATUS: N/A
 - AGENT_QA_STATUS: PLANNED
+- AGENT_BACKEND_DOD: backend quality/security baseline and tests executed successfully
+- AGENT_FRONTEND_DOD: N/A
+- AGENT_QA_DOD: quality, coverage and gate consistency validated before merge
 - AGENT_FRONTEND_JUSTIFICATION: repository has no frontend tree in pilot scope
 ```
 
 When `factory` PR checks run, these values drive the execution of CI jobs: `agent_backend`, `agent_frontend`, and `agent_qa`.
 If any agent status is `N/A`, include the corresponding `AGENT_<NAME>_JUSTIFICATION` with a non-placeholder reason.
 `N/A` justification must have at least 15 non-space characters and mention scope context (`backend/api`, `frontend/web`, or `qa/test`).
+`AGENT_<NAME>_DOD` is mandatory for backend/frontend/qa.
+If agent status is `N/A`, the corresponding `AGENT_<NAME>_DOD` must be exactly `N/A`.
+If agent status is `PLANNED` or `DONE`, `AGENT_<NAME>_DOD` must include meaningful scope/test context.
+If agent status is `DONE`, Evidence Records must include at least one agent-consistent command and at least one `PASS` result.
 
 PR evidence records template (required for factory PRs):
 
