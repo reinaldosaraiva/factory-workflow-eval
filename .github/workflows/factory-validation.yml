@@ -56,6 +56,7 @@ jobs:
             "## Acceptance Criteria"
             "## Risks"
             "## Risk Matrix"
+            "## Execution Evidence"
             "## Evidence"
           )
           for section in "${required_sections[@]}"; do
@@ -64,6 +65,23 @@ jobs:
               exit 1
             }
           done
+
+          execution_block="$(echo "$PR_BODY" | awk '
+            /^## Execution Evidence/ {capture=1; next}
+            /^## / && capture==1 {exit}
+            capture==1 {print}
+          ')"
+
+          echo "$execution_block" | grep -Eq '^- Command: .+' || {
+            echo "Execution evidence must include at least one '- Command: ...' line."
+            exit 1
+          }
+
+          echo "$execution_block" | grep -Eq '^- Result: .+' || {
+            echo "Execution evidence must include at least one '- Result: ...' line."
+            exit 1
+          }
+
           echo "PR evidence contract validated."
 
   validate_model_policy:
