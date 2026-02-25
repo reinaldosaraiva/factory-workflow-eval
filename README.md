@@ -19,6 +19,7 @@ Smoke tests:
 curl -sS http://127.0.0.1:8000/health
 curl -sS http://127.0.0.1:8000/health/details
 curl -sS http://127.0.0.1:8000/health/ready
+curl -sS http://127.0.0.1:8000/metrics
 ```
 
 Notes API:
@@ -35,6 +36,14 @@ Persistence config:
 ```bash
 export NOTES_DB_PATH=/tmp/factory-pilot-notes.db
 python3 scripts/apply_migrations.py
+```
+
+Observability:
+
+```bash
+# endpoint de contadores internos
+curl -sS http://127.0.0.1:8000/metrics
+# logs estruturados JSON aparecem no stdout do servidor (event=http_request)
 ```
 
 Not-ready simulation:

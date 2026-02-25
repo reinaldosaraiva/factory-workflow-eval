@@ -13,6 +13,12 @@ from app.notes_repo import create_note, initialize_database, list_notes
 
 START_MONOTONIC = monotonic()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+METRICS: dict[str, object] = {
+    "requests_total": 0,
+    "errors_total": 0,
+    "notes_created_total": 0,
+    "by_route": {},
+}
 
 
 def now_utc_iso() -> str:
@@ -34,8 +40,33 @@ def readiness_dependencies() -> dict[str, bool]:
     }
 
 
+def clear_observability_metrics() -> None:
+    METRICS["requests_total"] = 0
+    METRICS["errors_total"] = 0
+    METRICS["notes_created_total"] = 0
+    METRICS["by_route"] = {}
+
+
+def _metric_route_key(method: str, path: str, status: int) -> str:
+    return f"{method} {path} {status}"
+
+
+def record_response_metrics(method: str, path: str, status: int) -> None:
+    METRICS["requests_total"] = int(METRICS["requests_total"]) + 1
+    if status >= 400:
+        METRICS["errors_total"] = int(METRICS["errors_total"]) + 1
+    if method == "POST" and path == "/notes" and status == 201:
+        METRICS["notes_created_total"] = int(METRICS["notes_created_total"]) + 1
+
+    by_route = METRICS["by_route"]
+    assert isinstance(by_route, dict)
+    key = _metric_route_key(method, path, status)
+    by_route[key] = int(by_route.get(key, 0)) + 1
+
+
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
+        started = monotonic()
         if self.path == "/health":
             self._write_json(
                 200,
@@ -43,6 +74,7 @@ class HealthHandler(BaseHTTPRequestHandler):
                     "status": "ok",
                     "timestamp": now_utc_iso(),
                 },
+                started,
             )
             return
 
@@ -55,6 +87,7 @@ class HealthHandler(BaseHTTPRequestHandler):
                     "uptime_seconds": round(max(monotonic() - START_MONOTONIC, 0.0), 3),
                     "version": APP_VERSION,
                 },
+                started,
             )
             return
 
@@ -68,58 +101,90 @@ class HealthHandler(BaseHTTPRequestHandler):
                     "timestamp": now_utc_iso(),
                     "dependencies": deps,
                 },
+                started,
             )
             return
 
         if self.path == "/notes":
-            self._write_json(200, {"items": list_notes()})
+            self._write_json(200, {"items": list_notes()}, started)
             return
 
-        self._write_json(404, {"error": "not_found"})
+        if self.path == "/metrics":
+            self._write_json(
+                200,
+                {
+                    "status": "ok",
+                    "timestamp": now_utc_iso(),
+                    "uptime_seconds": round(max(monotonic() - START_MONOTONIC, 0.0), 3),
+                    "metrics": METRICS,
+                },
+                started,
+            )
+            return
+
+        self._write_json(404, {"error": "not_found"}, started)
 
     def do_POST(self) -> None:  # noqa: N802
+        started = monotonic()
         if self.path == "/notes":
-            self._handle_create_note()
+            self._handle_create_note(started)
             return
-        self._write_json(404, {"error": "not_found"})
+        self._write_json(404, {"error": "not_found"}, started)
 
-    def _handle_create_note(self) -> None:
+    def _handle_create_note(self, started: float) -> None:
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
-            self._write_json(400, {"error": "invalid_content_length"})
+            self._write_json(400, {"error": "invalid_content_length"}, started)
             return
 
         raw_body = self.rfile.read(max(content_length, 0))
         try:
             payload = json.loads(raw_body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            self._write_json(400, {"error": "invalid_json"})
+            self._write_json(400, {"error": "invalid_json"}, started)
             return
 
         if not isinstance(payload, dict):
-            self._write_json(400, {"error": "invalid_payload"})
+            self._write_json(400, {"error": "invalid_payload"}, started)
             return
 
         title = payload.get("title")
         content = payload.get("content")
         if not isinstance(title, str) or not title.strip():
-            self._write_json(400, {"error": "title_required"})
+            self._write_json(400, {"error": "title_required"}, started)
             return
         if content is not None and not isinstance(content, str):
-            self._write_json(400, {"error": "content_must_be_string"})
+            self._write_json(400, {"error": "content_must_be_string"}, started)
             return
 
         note = create_note(title.strip(), content, now_utc_iso())
-        self._write_json(201, note)
+        self._write_json(201, note, started)
 
-    def _write_json(self, status: int, payload: dict[str, object]) -> None:
+    def _write_json(self, status: int, payload: dict[str, object], started: float) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+        elapsed_ms = round(max(monotonic() - started, 0.0) * 1000, 3)
+        method = self.command
+        path = self.path
+        record_response_metrics(method, path, status)
+        print(
+            json.dumps(
+                {
+                    "event": "http_request",
+                    "timestamp": now_utc_iso(),
+                    "method": method,
+                    "path": path,
+                    "status": status,
+                    "duration_ms": elapsed_ms,
+                },
+            ),
+            flush=True,
+        )
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A003
         return
