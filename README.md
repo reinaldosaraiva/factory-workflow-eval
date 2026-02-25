@@ -102,6 +102,7 @@ PR agent plan template (required for factory PRs):
 
 When `factory` PR checks run, these values drive the execution of CI jobs: `agent_backend`, `agent_frontend`, and `agent_qa`.
 If any agent status is `N/A`, include the corresponding `AGENT_<NAME>_JUSTIFICATION` with a non-placeholder reason.
+`N/A` justification must have at least 15 non-space characters and mention scope context (`backend/api`, `frontend/web`, or `qa/test`).
 
 PR evidence records template (required for factory PRs):
 

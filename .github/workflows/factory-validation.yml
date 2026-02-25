@@ -141,6 +141,14 @@ jobs:
               echo "AGENT_BACKEND_JUSTIFICATION cannot be a placeholder value."
               exit 1
             }
+            [ "$(echo "$backend_justification" | tr -d '[:space:]' | wc -c | tr -d ' ')" -lt 15 ] && {
+              echo "AGENT_BACKEND_JUSTIFICATION must contain at least 15 non-space characters."
+              exit 1
+            }
+            echo "$backend_justification" | grep -Eqi '(backend|api|scope|escopo|teste|test)' || {
+              echo "AGENT_BACKEND_JUSTIFICATION must mention backend/API/scope context."
+              exit 1
+            }
           fi
 
           if [ "$frontend_status" = "N/A" ]; then
@@ -153,6 +161,14 @@ jobs:
               echo "AGENT_FRONTEND_JUSTIFICATION cannot be a placeholder value."
               exit 1
             }
+            [ "$(echo "$frontend_justification" | tr -d '[:space:]' | wc -c | tr -d ' ')" -lt 15 ] && {
+              echo "AGENT_FRONTEND_JUSTIFICATION must contain at least 15 non-space characters."
+              exit 1
+            }
+            echo "$frontend_justification" | grep -Eqi '(frontend|web|scope|escopo|teste|test)' || {
+              echo "AGENT_FRONTEND_JUSTIFICATION must mention frontend/web/scope context."
+              exit 1
+            }
           fi
 
           if [ "$qa_status" = "N/A" ]; then
@@ -163,6 +179,14 @@ jobs:
             }
             echo "$qa_justification" | grep -Eqi '^(n/a|na|none|-)$' && {
               echo "AGENT_QA_JUSTIFICATION cannot be a placeholder value."
+              exit 1
+            }
+            [ "$(echo "$qa_justification" | tr -d '[:space:]' | wc -c | tr -d ' ')" -lt 15 ] && {
+              echo "AGENT_QA_JUSTIFICATION must contain at least 15 non-space characters."
+              exit 1
+            }
+            echo "$qa_justification" | grep -Eqi '(qa|quality|teste|test|scope|escopo)' || {
+              echo "AGENT_QA_JUSTIFICATION must mention QA/test/scope context."
               exit 1
             }
           fi
