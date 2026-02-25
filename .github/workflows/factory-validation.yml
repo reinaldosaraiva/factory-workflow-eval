@@ -165,6 +165,9 @@ jobs:
               exit 1
             }
 
+            artifact_value="$(
+              echo "$records_block" | sed -nE "s/^- EVIDENCE_ARTIFACT_${idx}:\\s*(.+)$/\\1/p" | head -n 1
+            )"
             result_value="$(
               echo "$records_block" | sed -nE "s/^- EVIDENCE_RESULT_${idx}:\\s*(.+)$/\\1/p" | head -n 1
             )"
@@ -172,6 +175,13 @@ jobs:
               echo "Evidence Records EVIDENCE_RESULT_${idx} must use status PASS|FAIL|WARN|SKIP, optionally with details in parentheses."
               exit 1
             }
+
+            if echo "$result_value" | grep -Eq '^(FAIL|WARN)(\s*\(.+\))?$'; then
+              echo "$artifact_value" | grep -Eqi '^(local-terminal-output|none|n/a|na)$' && {
+                echo "Evidence Records EVIDENCE_ARTIFACT_${idx} must be a concrete artifact when EVIDENCE_RESULT_${idx} is FAIL or WARN."
+                exit 1
+              }
+            fi
 
             expected_index=$((expected_index + 1))
           done <<< "$record_indexes"
