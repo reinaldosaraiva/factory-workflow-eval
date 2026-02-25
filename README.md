@@ -58,6 +58,12 @@ Run tests:
 python3 -m unittest discover -s tests -v
 ```
 
+Run quality/security baseline (local, same as CI gate):
+
+```bash
+scripts/quality/run_quality_security_checks.sh
+```
+
 Policy validation marker: 2026-02-24T22:59:33Z
 
 Auto-merge validation marker: 2026-02-24T23:06:04Z
