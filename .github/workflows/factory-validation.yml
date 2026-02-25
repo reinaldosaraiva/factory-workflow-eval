@@ -126,6 +126,18 @@ jobs:
             exit 1
           }
 
+          schema_version_line="$(echo "$records_block" | grep -E '^- EVIDENCE_SCHEMA_VERSION:\s*.+$' || true)"
+          if [ -z "$schema_version_line" ]; then
+            echo "Evidence Records must include '- EVIDENCE_SCHEMA_VERSION: v1'."
+            exit 1
+          fi
+
+          schema_version="$(echo "$schema_version_line" | sed -E 's/^- EVIDENCE_SCHEMA_VERSION:\s*//')"
+          if [ "$schema_version" != "v1" ]; then
+            echo "Unsupported EVIDENCE_SCHEMA_VERSION: '$schema_version'. Expected 'v1'."
+            exit 1
+          fi
+
           echo "PR evidence contract validated."
 
   validate_model_policy:

@@ -94,6 +94,7 @@ PR evidence records template (required for factory PRs):
 
 ```md
 ## Evidence Records
+- EVIDENCE_SCHEMA_VERSION: v1
 - EVIDENCE_COMMAND_1: scripts/quality/run_quality_security_checks.sh
 - EVIDENCE_RESULT_1: PASS
 - EVIDENCE_ARTIFACT_1: local-terminal-output
