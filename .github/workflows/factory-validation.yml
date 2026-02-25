@@ -55,6 +55,7 @@ jobs:
             "## Tests"
             "## Acceptance Criteria"
             "## Risks"
+            "## Risk Matrix"
             "## Evidence"
           )
           for section in "${required_sections[@]}"; do
@@ -119,3 +120,23 @@ jobs:
           chmod +x scripts/quality/run_quality_security_checks.sh
           chmod +x scripts/quality/scan_for_secrets.sh
           scripts/quality/run_quality_security_checks.sh
+
+  validate_coverage:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install coverage dependency
+        run: python3 -m pip install --disable-pip-version-check coverage
+
+      - name: Run coverage gate
+        run: |
+          chmod +x scripts/quality/run_coverage_gate.sh
+          scripts/quality/run_coverage_gate.sh 70
