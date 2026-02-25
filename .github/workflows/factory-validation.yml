@@ -101,3 +101,21 @@ jobs:
           fi
 
           echo "Model policy validation passed."
+
+  validate_quality_security:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run quality and security baseline checks
+        run: |
+          chmod +x scripts/quality/run_quality_security_checks.sh
+          chmod +x scripts/quality/scan_for_secrets.sh
+          scripts/quality/run_quality_security_checks.sh
