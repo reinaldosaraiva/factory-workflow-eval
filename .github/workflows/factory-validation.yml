@@ -181,6 +181,11 @@ jobs:
                 echo "Evidence Records EVIDENCE_ARTIFACT_${idx} must be a concrete artifact when EVIDENCE_RESULT_${idx} is FAIL or WARN."
                 exit 1
               }
+
+              echo "$artifact_value" | grep -Eq '^(https?://.+|[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,10})$' || {
+                echo "Evidence Records EVIDENCE_ARTIFACT_${idx} must be a URL (http/https) or a file path with extension when EVIDENCE_RESULT_${idx} is FAIL or WARN."
+                exit 1
+              }
             fi
 
             expected_index=$((expected_index + 1))
