@@ -90,6 +90,15 @@ PR traceability template (required for factory PRs):
 - Run URL: https://github.com/<org>/<repo>/actions/runs/<run_id>
 ```
 
+PR agent plan template (required for factory PRs):
+
+```md
+## Agent Plan
+- AGENT_BACKEND_STATUS: PLANNED
+- AGENT_FRONTEND_STATUS: N/A
+- AGENT_QA_STATUS: PLANNED
+```
+
 PR evidence records template (required for factory PRs):
 
 ```md
