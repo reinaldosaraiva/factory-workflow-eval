@@ -119,15 +119,19 @@ PR evidence records template (required for factory PRs):
 - EVIDENCE_COMMAND_1: scripts/quality/run_quality_security_checks.sh
 - EVIDENCE_RESULT_1: PASS (all checks passed)
 - EVIDENCE_ARTIFACT_1: local-terminal-output
+- EVIDENCE_AGENT_1: BACKEND
 - EVIDENCE_COMMAND_2: scripts/quality/run_coverage_gate.sh 70
 - EVIDENCE_RESULT_2: PASS (TOTAL 90% >= 70%)
 - EVIDENCE_ARTIFACT_2: local-terminal-output
+- EVIDENCE_AGENT_2: QA
 ```
 
 `EVIDENCE_RESULT_n` format: `PASS|FAIL|WARN|SKIP` with optional details in parentheses.
+`EVIDENCE_AGENT_n` is mandatory for each index and must be `BACKEND|FRONTEND|QA`.
 If `EVIDENCE_RESULT_n` is `FAIL` or `WARN`, `EVIDENCE_ARTIFACT_n` must be a concrete artifact (not `local-terminal-output`, `none`, `n/a`, or `na`).
 For `FAIL|WARN`, use artifact as `http(s)://...` or file path with extension (for example: `reports/error-log.txt`).
 Within the same PR, `EVIDENCE_COMMAND_n` and `EVIDENCE_ARTIFACT_n` values must be unique across indexes.
+If an agent status is `DONE`, at least one mapped `EVIDENCE_AGENT_n` record for that agent must have `PASS` and an agent-consistent command.
 
 Policy validation marker: 2026-02-24T22:59:33Z
 
