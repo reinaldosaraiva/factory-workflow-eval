@@ -96,12 +96,14 @@ PR evidence records template (required for factory PRs):
 ## Evidence Records
 - EVIDENCE_SCHEMA_VERSION: v1
 - EVIDENCE_COMMAND_1: scripts/quality/run_quality_security_checks.sh
-- EVIDENCE_RESULT_1: PASS
+- EVIDENCE_RESULT_1: PASS (all checks passed)
 - EVIDENCE_ARTIFACT_1: local-terminal-output
 - EVIDENCE_COMMAND_2: scripts/quality/run_coverage_gate.sh 70
-- EVIDENCE_RESULT_2: PASS
+- EVIDENCE_RESULT_2: PASS (TOTAL 90% >= 70%)
 - EVIDENCE_ARTIFACT_2: local-terminal-output
 ```
+
+`EVIDENCE_RESULT_n` format: `PASS|FAIL|WARN|SKIP` with optional details in parentheses.
 
 Policy validation marker: 2026-02-24T22:59:33Z
 
