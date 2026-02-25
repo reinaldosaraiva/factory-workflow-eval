@@ -165,6 +165,14 @@ jobs:
               exit 1
             }
 
+            result_value="$(
+              echo "$records_block" | sed -nE "s/^- EVIDENCE_RESULT_${idx}:\\s*(.+)$/\\1/p" | head -n 1
+            )"
+            echo "$result_value" | grep -Eq '^(PASS|FAIL|WARN|SKIP)(\s*\(.+\))?$' || {
+              echo "Evidence Records EVIDENCE_RESULT_${idx} must use status PASS|FAIL|WARN|SKIP, optionally with details in parentheses."
+              exit 1
+            }
+
             expected_index=$((expected_index + 1))
           done <<< "$record_indexes"
 
