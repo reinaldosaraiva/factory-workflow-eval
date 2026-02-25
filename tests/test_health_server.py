@@ -9,7 +9,7 @@ from datetime import datetime
 from http.client import HTTPConnection
 from http.server import HTTPServer
 
-from app.health_server import APP_VERSION, HealthHandler
+from app.health_server import APP_VERSION, HealthHandler, clear_observability_metrics
 from app.notes_repo import clear_notes_store, initialize_database
 
 
@@ -42,6 +42,7 @@ class HealthServerTest(unittest.TestCase):
             "NOTES_DB_PATH": os.environ.get("NOTES_DB_PATH"),
         }
         clear_notes_store()
+        clear_observability_metrics()
 
     def tearDown(self) -> None:
         for key, value in self._saved_env.items():
@@ -168,6 +169,22 @@ class HealthServerTest(unittest.TestCase):
         self.assertEqual(res.status, 200)
         self.assertEqual(len(payload["items"]), 1)
         self.assertEqual(payload["items"][0]["title"], "persisted")
+
+    def test_metrics_endpoint_reports_counters(self) -> None:
+        self.request_json("/health")
+        self.request_json(
+            "/notes",
+            method="POST",
+            body=json.dumps({"title": "obs", "content": "counter"}),
+        )
+        self.request_json("/unknown")
+
+        res, payload = self.request_json("/metrics")
+        self.assertEqual(res.status, 200)
+        self.assertEqual(payload["status"], "ok")
+        self.assertGreaterEqual(payload["metrics"]["requests_total"], 3)
+        self.assertGreaterEqual(payload["metrics"]["errors_total"], 1)
+        self.assertGreaterEqual(payload["metrics"]["notes_created_total"], 1)
 
 
 if __name__ == "__main__":
