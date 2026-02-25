@@ -130,6 +130,56 @@ jobs:
           backend_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_BACKEND_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
           frontend_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_FRONTEND_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
           qa_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_QA_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+          backend_dod="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_BACKEND_DOD:\s*(.+)$/\1/p' | head -n 1)"
+          frontend_dod="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_FRONTEND_DOD:\s*(.+)$/\1/p' | head -n 1)"
+          qa_dod="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_QA_DOD:\s*(.+)$/\1/p' | head -n 1)"
+
+          [ -z "$backend_dod" ] && {
+            echo "Agent Plan must include AGENT_BACKEND_DOD."
+            exit 1
+          }
+          [ -z "$frontend_dod" ] && {
+            echo "Agent Plan must include AGENT_FRONTEND_DOD."
+            exit 1
+          }
+          [ -z "$qa_dod" ] && {
+            echo "Agent Plan must include AGENT_QA_DOD."
+            exit 1
+          }
+
+          validate_agent_dod() {
+            local agent_name="$1"
+            local agent_status="$2"
+            local agent_dod="$3"
+            local keywords_regex="$4"
+
+            if [ "$agent_status" = "N/A" ]; then
+              [ "$agent_dod" != "N/A" ] && {
+                echo "AGENT_${agent_name}_DOD must be 'N/A' when AGENT_${agent_name}_STATUS is N/A."
+                exit 1
+              }
+              return
+            fi
+
+            echo "$agent_dod" | grep -Eqi '^(n/a|na|none|-)$' && {
+              echo "AGENT_${agent_name}_DOD cannot be a placeholder value."
+              exit 1
+            }
+
+            [ "$(echo "$agent_dod" | tr -d '[:space:]' | wc -c | tr -d ' ')" -lt 15 ] && {
+              echo "AGENT_${agent_name}_DOD must contain at least 15 non-space characters."
+              exit 1
+            }
+
+            echo "$agent_dod" | grep -Eqi "$keywords_regex" || {
+              echo "AGENT_${agent_name}_DOD must mention scope/test context for that agent."
+              exit 1
+            }
+          }
+
+          validate_agent_dod "BACKEND" "$backend_status" "$backend_dod" '(backend|api|test|teste|quality|coverage|scope|escopo)'
+          validate_agent_dod "FRONTEND" "$frontend_status" "$frontend_dod" '(frontend|web|ui|test|teste|quality|coverage|scope|escopo)'
+          validate_agent_dod "QA" "$qa_status" "$qa_dod" '(qa|quality|test|teste|coverage|scope|escopo)'
 
           if [ "$backend_status" = "N/A" ]; then
             backend_justification="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_BACKEND_JUSTIFICATION:\s*(.+)$/\1/p' | head -n 1)"
@@ -302,6 +352,48 @@ jobs:
             echo "$duplicate_artifacts"
             exit 1
           }
+
+          evidence_commands="$(
+            echo "$records_block" | sed -nE 's/^- EVIDENCE_COMMAND_[0-9]+:\s*(.+)$/\1/p'
+          )"
+          evidence_results="$(
+            echo "$records_block" | sed -nE 's/^- EVIDENCE_RESULT_[0-9]+:\s*(.+)$/\1/p'
+          )"
+          has_pass_result=0
+          echo "$evidence_results" | grep -Eq '^(PASS)(\s*\(.+\))?$' && has_pass_result=1
+
+          if [ "$backend_status" = "DONE" ]; then
+            echo "$evidence_commands" | grep -Eqi '(backend|api|scripts/quality/run_quality_security_checks\.sh|pytest|unittest|uv run --project api)' || {
+              echo "Agent Plan consistency error: AGENT_BACKEND_STATUS is DONE but no backend-related EVIDENCE_COMMAND_n was found."
+              exit 1
+            }
+            [ "$has_pass_result" -ne 1 ] && {
+              echo "Agent Plan consistency error: AGENT_BACKEND_STATUS is DONE but no PASS EVIDENCE_RESULT_n was found."
+              exit 1
+            }
+          fi
+
+          if [ "$frontend_status" = "DONE" ]; then
+            echo "$evidence_commands" | grep -Eqi '(frontend|web|pnpm|vitest|type-check|lint)' || {
+              echo "Agent Plan consistency error: AGENT_FRONTEND_STATUS is DONE but no frontend-related EVIDENCE_COMMAND_n was found."
+              exit 1
+            }
+            [ "$has_pass_result" -ne 1 ] && {
+              echo "Agent Plan consistency error: AGENT_FRONTEND_STATUS is DONE but no PASS EVIDENCE_RESULT_n was found."
+              exit 1
+            }
+          fi
+
+          if [ "$qa_status" = "DONE" ]; then
+            echo "$evidence_commands" | grep -Eqi '(qa|quality|coverage|test|pytest|unittest|run_coverage_gate\.sh)' || {
+              echo "Agent Plan consistency error: AGENT_QA_STATUS is DONE but no QA/test-related EVIDENCE_COMMAND_n was found."
+              exit 1
+            }
+            [ "$has_pass_result" -ne 1 ] && {
+              echo "Agent Plan consistency error: AGENT_QA_STATUS is DONE but no PASS EVIDENCE_RESULT_n was found."
+              exit 1
+            }
+          fi
 
           echo "PR evidence contract validated."
 
