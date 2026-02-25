@@ -58,6 +58,7 @@ jobs:
             "## Risk Matrix"
             "## Traceability"
             "## Execution Evidence"
+            "## Evidence Records"
             "## Evidence"
           )
           for section in "${required_sections[@]}"; do
@@ -101,6 +102,27 @@ jobs:
 
           echo "$traceability_block" | grep -Eq 'Run URL:\s*https://github\.com/.+/actions/runs/[0-9]+' || {
             echo "Traceability section must include a valid CI Run URL."
+            exit 1
+          }
+
+          records_block="$(echo "$PR_BODY" | awk '
+            /^## Evidence Records/ {capture=1; next}
+            /^## / && capture==1 {exit}
+            capture==1 {print}
+          ')"
+
+          echo "$records_block" | grep -Eq '^- EVIDENCE_COMMAND_1:\s*.+$' || {
+            echo "Evidence Records must include '- EVIDENCE_COMMAND_1: ...'."
+            exit 1
+          }
+
+          echo "$records_block" | grep -Eq '^- EVIDENCE_RESULT_1:\s*.+$' || {
+            echo "Evidence Records must include '- EVIDENCE_RESULT_1: ...'."
+            exit 1
+          }
+
+          echo "$records_block" | grep -Eq '^- EVIDENCE_ARTIFACT_1:\s*.+$' || {
+            echo "Evidence Records must include '- EVIDENCE_ARTIFACT_1: ...'."
             exit 1
           }
 
