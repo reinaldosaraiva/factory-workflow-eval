@@ -64,6 +64,13 @@ Run quality/security baseline (local, same as CI gate):
 scripts/quality/run_quality_security_checks.sh
 ```
 
+Run coverage gate (local, same threshold as CI):
+
+```bash
+python3 -m pip install coverage
+scripts/quality/run_coverage_gate.sh 70
+```
+
 Policy validation marker: 2026-02-24T22:59:33Z
 
 Auto-merge validation marker: 2026-02-24T23:06:04Z
