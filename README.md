@@ -71,6 +71,16 @@ python3 -m pip install coverage
 scripts/quality/run_coverage_gate.sh 70
 ```
 
+PR body evidence template (required for factory PRs):
+
+```md
+## Execution Evidence
+- Command: `scripts/quality/run_quality_security_checks.sh`
+- Result: `PASS (all checks passed)`
+- Command: `scripts/quality/run_coverage_gate.sh 70`
+- Result: `PASS (TOTAL >= 70%)`
+```
+
 Policy validation marker: 2026-02-24T22:59:33Z
 
 Auto-merge validation marker: 2026-02-24T23:06:04Z
