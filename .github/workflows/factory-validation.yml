@@ -111,6 +111,11 @@ jobs:
             capture==1 {print}
           ')"
 
+          echo "$records_block" | grep -Eq '^- EVIDENCE_SCHEMA_VERSION:\s*v1$' || {
+            echo "Evidence Records must include '- EVIDENCE_SCHEMA_VERSION: v1'."
+            exit 1
+          }
+
           echo "$records_block" | grep -Eq '^- EVIDENCE_COMMAND_1:\s*.+$' || {
             echo "Evidence Records must include '- EVIDENCE_COMMAND_1: ...'."
             exit 1
@@ -125,6 +130,43 @@ jobs:
             echo "Evidence Records must include '- EVIDENCE_ARTIFACT_1: ...'."
             exit 1
           }
+
+          record_indexes="$(
+            echo "$records_block" \
+              | sed -nE 's/^- EVIDENCE_(COMMAND|RESULT|ARTIFACT)_([0-9]+):.*/\2/p' \
+              | sort -n \
+              | uniq
+          )"
+
+          records_count="$(echo "$record_indexes" | grep -Ec '^[0-9]+$' || true)"
+          if [ "$records_count" -lt 2 ]; then
+            echo "Evidence Records must include at least two indexed records (_1 and _2)."
+            exit 1
+          fi
+
+          expected_index=1
+          while IFS= read -r idx; do
+            [ -z "$idx" ] && continue
+            if [ "$idx" -ne "$expected_index" ]; then
+              echo "Evidence Records indexes must be sequential without gaps (expected _${expected_index}, got _${idx})."
+              exit 1
+            fi
+
+            echo "$records_block" | grep -Eq "^- EVIDENCE_COMMAND_${idx}:\\s*.+$" || {
+              echo "Evidence Records missing '- EVIDENCE_COMMAND_${idx}: ...'."
+              exit 1
+            }
+            echo "$records_block" | grep -Eq "^- EVIDENCE_RESULT_${idx}:\\s*.+$" || {
+              echo "Evidence Records missing '- EVIDENCE_RESULT_${idx}: ...'."
+              exit 1
+            }
+            echo "$records_block" | grep -Eq "^- EVIDENCE_ARTIFACT_${idx}:\\s*.+$" || {
+              echo "Evidence Records missing '- EVIDENCE_ARTIFACT_${idx}: ...'."
+              exit 1
+            }
+
+            expected_index=$((expected_index + 1))
+          done <<< "$record_indexes"
 
           echo "PR evidence contract validated."
 
