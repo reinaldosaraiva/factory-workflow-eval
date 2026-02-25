@@ -90,6 +90,15 @@ PR traceability template (required for factory PRs):
 - Run URL: https://github.com/<org>/<repo>/actions/runs/<run_id>
 ```
 
+PR evidence records template (required for factory PRs):
+
+```md
+## Evidence Records
+- EVIDENCE_COMMAND_1: scripts/quality/run_quality_security_checks.sh
+- EVIDENCE_RESULT_1: PASS
+- EVIDENCE_ARTIFACT_1: local-terminal-output
+```
+
 Policy validation marker: 2026-02-24T22:59:33Z
 
 Auto-merge validation marker: 2026-02-24T23:06:04Z
