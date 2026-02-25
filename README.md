@@ -99,6 +99,8 @@ PR agent plan template (required for factory PRs):
 - AGENT_QA_STATUS: PLANNED
 ```
 
+When `factory` PR checks run, these values drive the execution of CI jobs: `agent_backend`, `agent_frontend`, and `agent_qa`.
+
 PR evidence records template (required for factory PRs):
 
 ```md

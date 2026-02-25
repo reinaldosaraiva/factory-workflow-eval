@@ -315,3 +315,132 @@ jobs:
         run: |
           chmod +x scripts/quality/run_coverage_gate.sh
           scripts/quality/run_coverage_gate.sh 70
+
+  agent_backend:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Execute backend agent
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          agent_plan_block="$(echo "$PR_BODY" | awk '
+            /^## Agent Plan/ {capture=1; next}
+            /^## / && capture==1 {exit}
+            capture==1 {print}
+          ')"
+
+          backend_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_BACKEND_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+          [ -z "$backend_status" ] && {
+            echo "AGENT_BACKEND_STATUS not found in Agent Plan."
+            exit 1
+          }
+
+          echo "Backend agent status: $backend_status"
+          if [ "$backend_status" = "N/A" ]; then
+            echo "Backend agent skipped by plan."
+            exit 0
+          fi
+
+          chmod +x scripts/quality/run_quality_security_checks.sh scripts/quality/scan_for_secrets.sh
+          scripts/quality/run_quality_security_checks.sh
+          echo "Backend agent execution completed."
+
+  agent_frontend:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Execute frontend agent
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          agent_plan_block="$(echo "$PR_BODY" | awk '
+            /^## Agent Plan/ {capture=1; next}
+            /^## / && capture==1 {exit}
+            capture==1 {print}
+          ')"
+
+          frontend_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_FRONTEND_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+          [ -z "$frontend_status" ] && {
+            echo "AGENT_FRONTEND_STATUS not found in Agent Plan."
+            exit 1
+          }
+
+          echo "Frontend agent status: $frontend_status"
+          if [ "$frontend_status" = "N/A" ]; then
+            echo "Frontend agent skipped by plan."
+            exit 0
+          fi
+
+          # Pilot repository has no frontend source tree; keep an explicit execution marker.
+          if [ -d web ]; then
+            echo "Frontend source detected."
+          else
+            echo "Frontend source not present in pilot repository; running frontend agent in pilot mode."
+          fi
+          echo "Frontend agent execution completed."
+
+  agent_qa:
+    if: github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), 'factory')
+    runs-on: ubuntu-latest
+    needs:
+      - validate_pr_contract
+      - validate_model_policy
+      - validate_quality_security
+      - validate_coverage
+      - agent_backend
+      - agent_frontend
+    steps:
+      - name: Execute QA agent
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BACKEND_RESULT: ${{ needs.agent_backend.result }}
+          FRONTEND_RESULT: ${{ needs.agent_frontend.result }}
+          CONTRACT_RESULT: ${{ needs.validate_pr_contract.result }}
+          POLICY_RESULT: ${{ needs.validate_model_policy.result }}
+          QUALITY_RESULT: ${{ needs.validate_quality_security.result }}
+          COVERAGE_RESULT: ${{ needs.validate_coverage.result }}
+        run: |
+          agent_plan_block="$(echo "$PR_BODY" | awk '
+            /^## Agent Plan/ {capture=1; next}
+            /^## / && capture==1 {exit}
+            capture==1 {print}
+          ')"
+
+          qa_status="$(echo "$agent_plan_block" | sed -nE 's/^- AGENT_QA_STATUS:\s*(PLANNED|N\/A|DONE)$/\1/p' | head -n 1)"
+          [ -z "$qa_status" ] && {
+            echo "AGENT_QA_STATUS not found in Agent Plan."
+            exit 1
+          }
+
+          echo "QA agent status: $qa_status"
+          if [ "$qa_status" = "N/A" ]; then
+            echo "QA agent skipped by plan."
+            exit 0
+          fi
+
+          for result in \
+            "$BACKEND_RESULT" \
+            "$FRONTEND_RESULT" \
+            "$CONTRACT_RESULT" \
+            "$POLICY_RESULT" \
+            "$QUALITY_RESULT" \
+            "$COVERAGE_RESULT"; do
+            if [ "$result" != "success" ]; then
+              echo "QA gate failed: prerequisite job result is '$result'."
+              exit 1
+            fi
+          done
+
+          echo "QA agent execution completed. All prerequisite gates are successful."
