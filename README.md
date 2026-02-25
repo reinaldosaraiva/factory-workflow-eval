@@ -94,9 +94,13 @@ PR evidence records template (required for factory PRs):
 
 ```md
 ## Evidence Records
+- EVIDENCE_SCHEMA_VERSION: v1
 - EVIDENCE_COMMAND_1: scripts/quality/run_quality_security_checks.sh
 - EVIDENCE_RESULT_1: PASS
 - EVIDENCE_ARTIFACT_1: local-terminal-output
+- EVIDENCE_COMMAND_2: scripts/quality/run_coverage_gate.sh 70
+- EVIDENCE_RESULT_2: PASS
+- EVIDENCE_ARTIFACT_2: local-terminal-output
 ```
 
 Policy validation marker: 2026-02-24T22:59:33Z
