@@ -191,6 +191,32 @@ jobs:
             expected_index=$((expected_index + 1))
           done <<< "$record_indexes"
 
+          duplicate_commands="$(
+            echo "$records_block" \
+              | sed -nE 's/^- EVIDENCE_COMMAND_[0-9]+:\s*(.+)$/\1/p' \
+              | sort \
+              | uniq -d
+          )"
+          [ -n "$duplicate_commands" ] && {
+            echo "Evidence Records must not contain duplicated EVIDENCE_COMMAND_n values."
+            echo "Duplicated commands:"
+            echo "$duplicate_commands"
+            exit 1
+          }
+
+          duplicate_artifacts="$(
+            echo "$records_block" \
+              | sed -nE 's/^- EVIDENCE_ARTIFACT_[0-9]+:\s*(.+)$/\1/p' \
+              | sort \
+              | uniq -d
+          )"
+          [ -n "$duplicate_artifacts" ] && {
+            echo "Evidence Records must not contain duplicated EVIDENCE_ARTIFACT_n values."
+            echo "Duplicated artifacts:"
+            echo "$duplicate_artifacts"
+            exit 1
+          }
+
           echo "PR evidence contract validated."
 
   validate_model_policy:

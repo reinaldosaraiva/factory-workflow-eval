@@ -106,6 +106,7 @@ PR evidence records template (required for factory PRs):
 `EVIDENCE_RESULT_n` format: `PASS|FAIL|WARN|SKIP` with optional details in parentheses.
 If `EVIDENCE_RESULT_n` is `FAIL` or `WARN`, `EVIDENCE_ARTIFACT_n` must be a concrete artifact (not `local-terminal-output`, `none`, `n/a`, or `na`).
 For `FAIL|WARN`, use artifact as `http(s)://...` or file path with extension (for example: `reports/error-log.txt`).
+Within the same PR, `EVIDENCE_COMMAND_n` and `EVIDENCE_ARTIFACT_n` values must be unique across indexes.
 
 Policy validation marker: 2026-02-24T22:59:33Z
 
