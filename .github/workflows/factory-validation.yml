@@ -56,6 +56,7 @@ jobs:
             "## Acceptance Criteria"
             "## Risks"
             "## Risk Matrix"
+            "## Traceability"
             "## Execution Evidence"
             "## Evidence"
           )
@@ -79,6 +80,27 @@ jobs:
 
           echo "$execution_block" | grep -Eq '^- Result: .+' || {
             echo "Execution evidence must include at least one '- Result: ...' line."
+            exit 1
+          }
+
+          traceability_block="$(echo "$PR_BODY" | awk '
+            /^## Traceability/ {capture=1; next}
+            /^## / && capture==1 {exit}
+            capture==1 {print}
+          ')"
+
+          echo "$traceability_block" | grep -Eq 'Issue URL:\s*https://github\.com/.+/issues/[0-9]+' || {
+            echo "Traceability section must include a valid Issue URL."
+            exit 1
+          }
+
+          echo "$traceability_block" | grep -Eq 'PR URL:\s*https://github\.com/.+/pull/[0-9]+' || {
+            echo "Traceability section must include a valid PR URL."
+            exit 1
+          }
+
+          echo "$traceability_block" | grep -Eq 'Run URL:\s*https://github\.com/.+/actions/runs/[0-9]+' || {
+            echo "Traceability section must include a valid CI Run URL."
             exit 1
           }
 

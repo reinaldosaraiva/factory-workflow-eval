@@ -81,6 +81,15 @@ PR body evidence template (required for factory PRs):
 - Result: `PASS (TOTAL >= 70%)`
 ```
 
+PR traceability template (required for factory PRs):
+
+```md
+## Traceability
+- Issue URL: https://github.com/<org>/<repo>/issues/<number>
+- PR URL: https://github.com/<org>/<repo>/pull/<number>
+- Run URL: https://github.com/<org>/<repo>/actions/runs/<run_id>
+```
+
 Policy validation marker: 2026-02-24T22:59:33Z
 
 Auto-merge validation marker: 2026-02-24T23:06:04Z
