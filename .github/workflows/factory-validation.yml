@@ -267,9 +267,14 @@ jobs:
             exit 1
           }
 
+          echo "$records_block" | grep -Eq '^- EVIDENCE_AGENT_1:[[:space:]]*(BACKEND|FRONTEND|QA)$' || {
+            echo "Evidence Records must include '- EVIDENCE_AGENT_1: BACKEND|FRONTEND|QA'."
+            exit 1
+          }
+
           record_indexes="$(
             echo "$records_block" \
-              | sed -nE 's/^- EVIDENCE_(COMMAND|RESULT|ARTIFACT)_([0-9]+):.*/\2/p' \
+              | sed -nE 's/^- EVIDENCE_(COMMAND|RESULT|ARTIFACT|AGENT)_([0-9]+):.*/\2/p' \
               | sort -n \
               | uniq
           )"
@@ -279,6 +284,10 @@ jobs:
             echo "Evidence Records must include at least two indexed records (_1 and _2)."
             exit 1
           fi
+
+          backend_done_record_ok=0
+          frontend_done_record_ok=0
+          qa_done_record_ok=0
 
           expected_index=1
           while IFS= read -r idx; do
@@ -300,12 +309,22 @@ jobs:
               echo "Evidence Records missing '- EVIDENCE_ARTIFACT_${idx}: ...'."
               exit 1
             }
+            echo "$records_block" | grep -Eq "^- EVIDENCE_AGENT_${idx}:[[:space:]]*(BACKEND|FRONTEND|QA)$" || {
+              echo "Evidence Records missing '- EVIDENCE_AGENT_${idx}: BACKEND|FRONTEND|QA'."
+              exit 1
+            }
 
+            command_value="$(
+              echo "$records_block" | sed -nE "s/^- EVIDENCE_COMMAND_${idx}:[[:space:]]*(.+)$/\\1/p" | head -n 1
+            )"
             artifact_value="$(
               echo "$records_block" | sed -nE "s/^- EVIDENCE_ARTIFACT_${idx}:[[:space:]]*(.+)$/\\1/p" | head -n 1
             )"
             result_value="$(
               echo "$records_block" | sed -nE "s/^- EVIDENCE_RESULT_${idx}:[[:space:]]*(.+)$/\\1/p" | head -n 1
+            )"
+            agent_value="$(
+              echo "$records_block" | sed -nE "s/^- EVIDENCE_AGENT_${idx}:[[:space:]]*(BACKEND|FRONTEND|QA)$/\\1/p" | head -n 1
             )"
             echo "$result_value" | grep -Eq '^(PASS|FAIL|WARN|SKIP)([[:space:]]*\(.+\))?$' || {
               echo "Evidence Records EVIDENCE_RESULT_${idx} must use status PASS|FAIL|WARN|SKIP, optionally with details in parentheses."
@@ -322,6 +341,18 @@ jobs:
                 echo "Evidence Records EVIDENCE_ARTIFACT_${idx} must be a URL (http/https) or a file path with extension when EVIDENCE_RESULT_${idx} is FAIL or WARN."
                 exit 1
               }
+            fi
+
+            if echo "$result_value" | grep -Eq '^(PASS)([[:space:]]*\(.+\))?$'; then
+              if [ "$agent_value" = "BACKEND" ] && echo "$command_value" | grep -Eqi '(backend|api|scripts/quality/run_quality_security_checks\.sh|pytest|unittest|uv run --project api)'; then
+                backend_done_record_ok=1
+              fi
+              if [ "$agent_value" = "FRONTEND" ] && echo "$command_value" | grep -Eqi '(frontend|web|pnpm|vitest|type-check|lint)'; then
+                frontend_done_record_ok=1
+              fi
+              if [ "$agent_value" = "QA" ] && echo "$command_value" | grep -Eqi '(qa|quality|coverage|test|pytest|unittest|run_coverage_gate\.sh)'; then
+                qa_done_record_ok=1
+              fi
             fi
 
             expected_index=$((expected_index + 1))
@@ -353,44 +384,23 @@ jobs:
             exit 1
           }
 
-          evidence_commands="$(
-            echo "$records_block" | sed -nE 's/^- EVIDENCE_COMMAND_[0-9]+:[[:space:]]*(.+)$/\1/p'
-          )"
-          evidence_results="$(
-            echo "$records_block" | sed -nE 's/^- EVIDENCE_RESULT_[0-9]+:[[:space:]]*(.+)$/\1/p'
-          )"
-          has_pass_result=0
-          echo "$evidence_results" | grep -Eq '^(PASS)([[:space:]]*\(.+\))?$' && has_pass_result=1
-
           if [ "$backend_status" = "DONE" ]; then
-            echo "$evidence_commands" | grep -Eqi '(backend|api|scripts/quality/run_quality_security_checks\.sh|pytest|unittest|uv run --project api)' || {
-              echo "Agent Plan consistency error: AGENT_BACKEND_STATUS is DONE but no backend-related EVIDENCE_COMMAND_n was found."
-              exit 1
-            }
-            [ "$has_pass_result" -ne 1 ] && {
-              echo "Agent Plan consistency error: AGENT_BACKEND_STATUS is DONE but no PASS EVIDENCE_RESULT_n was found."
+            [ "$backend_done_record_ok" -ne 1 ] && {
+              echo "Agent Plan consistency error: AGENT_BACKEND_STATUS is DONE but no BACKEND-mapped PASS evidence record with backend-consistent command was found."
               exit 1
             }
           fi
 
           if [ "$frontend_status" = "DONE" ]; then
-            echo "$evidence_commands" | grep -Eqi '(frontend|web|pnpm|vitest|type-check|lint)' || {
-              echo "Agent Plan consistency error: AGENT_FRONTEND_STATUS is DONE but no frontend-related EVIDENCE_COMMAND_n was found."
-              exit 1
-            }
-            [ "$has_pass_result" -ne 1 ] && {
-              echo "Agent Plan consistency error: AGENT_FRONTEND_STATUS is DONE but no PASS EVIDENCE_RESULT_n was found."
+            [ "$frontend_done_record_ok" -ne 1 ] && {
+              echo "Agent Plan consistency error: AGENT_FRONTEND_STATUS is DONE but no FRONTEND-mapped PASS evidence record with frontend-consistent command was found."
               exit 1
             }
           fi
 
           if [ "$qa_status" = "DONE" ]; then
-            echo "$evidence_commands" | grep -Eqi '(qa|quality|coverage|test|pytest|unittest|run_coverage_gate\.sh)' || {
-              echo "Agent Plan consistency error: AGENT_QA_STATUS is DONE but no QA/test-related EVIDENCE_COMMAND_n was found."
-              exit 1
-            }
-            [ "$has_pass_result" -ne 1 ] && {
-              echo "Agent Plan consistency error: AGENT_QA_STATUS is DONE but no PASS EVIDENCE_RESULT_n was found."
+            [ "$qa_done_record_ok" -ne 1 ] && {
+              echo "Agent Plan consistency error: AGENT_QA_STATUS is DONE but no QA-mapped PASS evidence record with QA-consistent command was found."
               exit 1
             }
           fi
